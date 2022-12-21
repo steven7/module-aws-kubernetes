@@ -2,7 +2,6 @@ provider "aws" {
   region = var.aws_region
 }
 
-# Cluster access management
 locals {
   cluster_name = "${var.cluster_name}-${var.env_name}"
 }
@@ -78,6 +77,13 @@ resource "aws_eks_cluster" "ms-up-running" {
   ]
 }
 
+
+#
+# EKS Worker Nodes Resources
+#  * IAM role allowing Kubernetes actions to access other AWS services
+#  * EKS Node Group to launch worker nodes
+#
+
 resource "aws_iam_role" "ms-node" {
   name = "${local.cluster_name}.node"
 
@@ -134,15 +140,13 @@ resource "aws_eks_node_group" "ms-node-group" {
   ]
 }
 
-# Generate kubeconfig
 # Create a kubeconfig file based on the cluster that has been created
 resource "local_file" "kubeconfig" {
-  content  = <<KUBECONFIG_END
+  content  = <<KUBECONFIG
 apiVersion: v1
 clusters:
 - cluster:
-    "certificate-authority-data: >
-   ${aws_eks_cluster.ms-up-running.certificate_authority.0.data}"
+    certificate-authority-data: ${aws_eks_cluster.ms-up-running.certificate_authority.0.data}
     server: ${aws_eks_cluster.ms-up-running.endpoint}
   name: ${aws_eks_cluster.ms-up-running.arn}
 contexts:
@@ -163,7 +167,7 @@ users:
         - "token"
         - "-i"
         - "${aws_eks_cluster.ms-up-running.name}"
-    KUBECONFIG_END
+    KUBECONFIG
   filename = "kubeconfig"
 }
 /*
